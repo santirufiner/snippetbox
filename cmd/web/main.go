@@ -4,7 +4,13 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 )
+
+type application struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
 
 func main() {
 	/* Define a new command-line flag with the name 'addr', a default value of ":4000"
@@ -13,23 +19,23 @@ func main() {
 	addr := flag.String("addr", ":4000", "HTTP Network Address")
 	flag.Parse()
 
-	/* Start a new router (servemux).
-	Hacerlo de esta manera (y no vía DefaultServeMux) para evitar handlers maliciosos de third-party packages */
-	mux := http.NewServeMux()
+	// Logger de info y error
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	// Create a static file server for delivering static files like imgs or css
-	fileServer := http.FileServer(http.Dir("./ui/static/"))
-
-	// Usar la Handle func para que responda a todos los paths q empiecen con /static/
-	mux.Handle("/static/", http.StripPrefix("/static", fileServer))
-
-	// Handlers
-	mux.HandleFunc("/", home)
-	mux.HandleFunc("/snippet/view", snippetView)
-	mux.HandleFunc("/snippet/create", snippetCreate)
+	app := &application{
+		errorLog: errorLog,
+		infoLog:  infoLog,
+	}
 
 	// Start a new web server
-	log.Printf("Starting server on %s", *addr)
-	err := http.ListenAndServe(*addr, mux)
-	log.Fatal(err)
+	srv := &http.Server{
+		Addr:     *addr,
+		ErrorLog: errorLog,
+		Handler:  app.routes(),
+	}
+
+	infoLog.Printf("Starting server on %s", *addr) // Information message
+	err := srv.ListenAndServe()
+	errorLog.Fatal(err) // Error message
 }
