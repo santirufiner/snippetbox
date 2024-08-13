@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
 	"strconv"
+
+	"github.com/santirufiner/snippetbox/internal/models"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
@@ -15,24 +17,39 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// archivos html que le voy a pasar a la biblioteca template para que los renderice
-	files := []string{
-		"./ui/html/base.html",
-		"./ui/html/pages/home.html",
-		"./ui/html/partials/nav.html",
-	}
+	snippets, err := app.snippets.Latest()
 
-	ts, err := template.ParseFiles(files...)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
 
-	err = ts.ExecuteTemplate(w, "base", nil)
-	if err != nil {
-		app.serverError(w, err)
-		return
+	for _, snippet := range snippets {
+		fmt.Fprintf(w, "%v\n", snippet)
 	}
+
+	/*
+
+		// archivos html que le voy a pasar a la biblioteca template para que los renderice
+		files := []string{
+			"./ui/html/base.html",
+			"./ui/html/pages/home.html",
+			"./ui/html/partials/nav.html",
+		}
+
+		ts, err := template.ParseFiles(files...)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+
+		err = ts.ExecuteTemplate(w, "base", nil)
+		if err != nil {
+			app.serverError(w, err)
+			return
+		}
+
+	*/
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +58,19 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 		app.notFound(w)
 		return
 	}
-	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+
+	snippet, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// Write the snippet data as a plain-text HTTP response body.
+	fmt.Fprintf(w, "%+v", snippet)
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
