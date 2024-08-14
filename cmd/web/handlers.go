@@ -6,19 +6,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/julienschmidt/httprouter"
 	"github.com/santirufiner/snippetbox/internal/models"
 )
 
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 
-	// 404 error if not match home
-	if r.URL.Path != "/" {
-		app.notFound(w)
-		return
-	}
-
 	snippets, err := app.snippets.Latest()
-
 	if err != nil {
 		app.serverError(w, err)
 		return
@@ -31,7 +25,10 @@ func (app *application) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+
+	params := httprouter.ParamsFromContext(r.Context())
+
+	id, err := strconv.Atoi(params.ByName("id"))
 	if err != nil || id < 1 {
 		app.notFound(w)
 		return
@@ -54,16 +51,10 @@ func (app *application) snippetView(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Display the form for creating a new snippet..."))
+}
 
-	// 405 error if method is not POST
-	if r.Method != http.MethodPost {
-
-		// permite ver en la respuesta los métodos permitidos
-		w.Header().Set("Allow", http.MethodPost)
-
-		app.clientError(w, http.StatusMethodNotAllowed)
-		return
-	}
+func (app *application) snippetCreatePost(w http.ResponseWriter, r *http.Request) {
 
 	// Create some variables holding dummy data. We'll remove these later on
 	// during the build.
@@ -78,5 +69,5 @@ func (app *application) snippetCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Redirect a un view del ingreso del snippet
-	http.Redirect(w, r, fmt.Sprintf("/snippet/view?id=%d", id), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 }
