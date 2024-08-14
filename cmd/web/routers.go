@@ -1,8 +1,12 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
 
-func (app *application) routes() *http.ServeMux {
+	"github.com/justinas/alice"
+)
+
+func (app *application) routes() http.Handler {
 	/* Start a new router (servemux).
 	Hacerlo de esta manera (y no vía DefaultServeMux) para evitar handlers maliciosos de third-party packages */
 	mux := http.NewServeMux()
@@ -18,5 +22,6 @@ func (app *application) routes() *http.ServeMux {
 	mux.HandleFunc("/snippet/view", app.snippetView)
 	mux.HandleFunc("/snippet/create", app.snippetCreate)
 
-	return mux
+	standard := alice.New(app.recoverPanic, app.logRequest, secureHeader)
+	return standard.Then(mux)
 }
